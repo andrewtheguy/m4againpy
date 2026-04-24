@@ -1,1 +1,17 @@
 tmp/
+/target
+__pycache__/
+*.pyc
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+.claude/
+.venv/
+*.so
+*.dylib
+*.pyd
+dist/
+*.egg-info/
