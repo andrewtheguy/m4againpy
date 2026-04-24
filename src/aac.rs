@@ -939,6 +939,12 @@ fn parse_section_data(reader: &mut BitReader, info: &IcsInfo) -> Result<SectionD
                 }
             }
 
+            if sect_len == 0 || k + sect_len > info.max_sfb {
+                return Err(Error::AacParse {
+                    message: "invalid AAC section length".into(),
+                });
+            }
+
             for slot in group_cb.iter_mut().skip(k).take(sect_len) {
                 *slot = cb;
             }
@@ -1080,11 +1086,19 @@ fn parse_tns_data(reader: &mut BitReader, info: &IcsInfo) -> Result<()> {
     let num_windows = if info.long_win { 1 } else { 8 };
 
     for _ in 0..num_windows {
+        let mut remaining_bands = info.max_sfb;
         let n_filt = reader.read_bits(n_filt_bits)? as usize;
         if n_filt > 0 {
             let coef_res = reader.read_bits(1)?;
             for _ in 0..n_filt {
-                let _length = reader.read_bits(length_bits)?;
+                let length = reader.read_bits(length_bits)? as usize;
+                if length > remaining_bands {
+                    return Err(Error::AacParse {
+                        message: "invalid TNS filter length".into(),
+                    });
+                }
+                remaining_bands -= length;
+
                 let order = reader.read_bits(order_bits)? as usize;
                 if order > 0 {
                     let _direction = reader.read_bits(1)?;
