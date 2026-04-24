@@ -3,6 +3,7 @@ use std::path::Path;
 
 use crate::aac;
 use crate::error::{Error, Result};
+use crate::mp4;
 
 /// Apply a static `gain_steps` (1 step ≈ 1.5 dB) to AAC/M4A bytes.
 ///
@@ -40,7 +41,10 @@ pub fn aac_apply_gain_file(src: &Path, dst: &Path, gain_steps: i32) -> Result<us
         .truncate(true)
         .open(dst)?;
 
-    aac::apply_gain_plan_to_file(&mut src_file, &mut dst_file, &gain_plan, gain_steps)
+    let modified =
+        aac::apply_gain_plan_to_file(&mut src_file, &mut dst_file, &gain_plan, gain_steps)?;
+    mp4::append_gain_metadata(&mut dst_file, gain_steps)?;
+    Ok(modified)
 }
 
 fn ensure_distinct_paths(src: &Path, dst: &Path) -> Result<()> {
