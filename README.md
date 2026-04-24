@@ -64,8 +64,9 @@ bitstream). One step is 1.5 dB. If you want to think in dB, just divide:
 Zero steps is a no-op; gain locations are saturating-clamped to `0..=255`;
 locations with `global_gain == 0` are skipped (silence).
 
-The file API writes ffprobe-visible MP4 metadata to the destination:
-`TAG:description=m4againpy version=1 gain_steps=<n> gain_step_db=1.5`.
+The file API writes custom MP4 metadata to the destination:
+`TAG:M4AG=m4againpy version=1 gain_steps=<n> gain_step_db=1.5`.
+Use `ffprobe -export_all 1` to show the custom tag.
 
 ## Development
 

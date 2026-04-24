@@ -23,7 +23,7 @@ const META: u32 = u32::from_be_bytes(*b"meta");
 const HDLR: u32 = u32::from_be_bytes(*b"hdlr");
 const ILST: u32 = u32::from_be_bytes(*b"ilst");
 const DATA: u32 = u32::from_be_bytes(*b"data");
-const DESC: u32 = u32::from_be_bytes(*b"desc");
+const M4AG: u32 = u32::from_be_bytes(*b"M4AG");
 
 #[derive(Debug, Clone)]
 pub(crate) struct BoxHeader {
@@ -156,8 +156,8 @@ pub(crate) fn is_mp4(data: &[u8]) -> bool {
     false
 }
 
-/// Record the gain operation in `moov/udta/meta/ilst/desc` so ffprobe exposes
-/// it as `TAG:description`.
+/// Record the gain operation in custom `moov/udta/meta/ilst/M4AG` metadata.
+/// ffprobe exposes this as `TAG:M4AG` when called with `-export_all 1`.
 pub(crate) fn write_gain_metadata(file: &mut File, gain_steps: i32) -> std::io::Result<()> {
     file.seek(SeekFrom::Start(0))?;
     let mut data = Vec::new();
@@ -196,7 +196,7 @@ fn with_gain_description(moov: &[u8], gain_steps: i32) -> std::io::Result<Vec<u8
         "m4againpy version=1 gain_steps={gain_steps} gain_step_db={}",
         crate::GAIN_STEP_DB
     );
-    let item = text_ilst_item(DESC, payload.as_bytes())?;
+    let item = text_ilst_item(M4AG, payload.as_bytes())?;
 
     let header = read_box_header(moov, 0)?;
     let content_start = header.header_size as usize;
@@ -266,12 +266,12 @@ fn with_item_in_ilst(ilst: &[u8], item: &[u8]) -> std::io::Result<Vec<u8>> {
     let content_start = header.header_size as usize;
     let mut out = ilst.to_vec();
 
-    if let Some((desc_pos, desc_header)) =
-        find_box_in_container(ilst, content_start, ilst.len() - content_start, DESC)
+    if let Some((m4ag_pos, m4ag_header)) =
+        find_box_in_container(ilst, content_start, ilst.len() - content_start, M4AG)
     {
-        let desc_size = checked_usize(desc_header.size, "desc item too large")?;
-        let desc_end = checked_add(desc_pos, desc_size, "desc item range overflow")?;
-        out.splice(desc_pos..desc_end, item.iter().copied());
+        let m4ag_size = checked_usize(m4ag_header.size, "M4AG item too large")?;
+        let m4ag_end = checked_add(m4ag_pos, m4ag_size, "M4AG item range overflow")?;
+        out.splice(m4ag_pos..m4ag_end, item.iter().copied());
     } else {
         out.extend_from_slice(item);
     }

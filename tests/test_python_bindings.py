@@ -67,7 +67,7 @@ def _top_level_boxes(buf):
 
 def _parse_gain_metadata(buf):
     try:
-        payload = _parse_itunes_tags(buf).get(b"desc")
+        payload = _parse_itunes_tags(buf).get(b"M4AG")
     except TypeError:
         return None
 
@@ -381,9 +381,11 @@ class M4aGainPyTest(unittest.TestCase):
                     "-v",
                     "error",
                     "-show_entries",
-                    "format_tags=description",
+                    "format_tags=M4AG",
                     "-of",
                     "default=nw=1",
+                    "-export_all",
+                    "1",
                     str(dst),
                 ],
                 check=True,
@@ -391,7 +393,7 @@ class M4aGainPyTest(unittest.TestCase):
                 text=True,
             )
             self.assertIn(
-                "TAG:description=m4againpy version=1 gain_steps=-3 gain_step_db=1.5",
+                "TAG:M4AG=m4againpy version=1 gain_steps=-3 gain_step_db=1.5",
                 probe.stdout,
             )
 
@@ -463,8 +465,42 @@ class MetadataPreservationTest(unittest.TestCase):
 
             after_tags = _parse_itunes_tags(dst.read_bytes())
             expected_tags = dict(before_tags)
-            expected_tags[b"desc"] = b"m4againpy version=1 gain_steps=3 gain_step_db=1.5"
+            expected_tags[b"M4AG"] = b"m4againpy version=1 gain_steps=3 gain_step_db=1.5"
             self.assertEqual(after_tags, expected_tags)
+
+    def test_file_api_preserves_existing_description_tag(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src = Path(tmpdir) / "described.m4a"
+            dst = Path(tmpdir) / "described_out.m4a"
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-nostdin",
+                    "-v",
+                    "error",
+                    "-y",
+                    "-i",
+                    str(TEST_M4A),
+                    "-c",
+                    "copy",
+                    "-metadata",
+                    "description=Existing description",
+                    str(src),
+                ],
+                check=True,
+            )
+            before_tags = _parse_itunes_tags(src.read_bytes())
+            self.assertEqual(before_tags.get(b"desc"), b"Existing description")
+
+            m4againpy.aac_apply_gain_file(str(src), str(dst), 2)
+
+            after_tags = _parse_itunes_tags(dst.read_bytes())
+            self.assertEqual(after_tags.get(b"desc"), b"Existing description")
+            self.assertEqual(
+                after_tags.get(b"M4AG"),
+                b"m4againpy version=1 gain_steps=2 gain_step_db=1.5",
+            )
 
     def test_file_api_rewrites_chunk_offsets_when_moov_growth_moves_media(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -603,7 +639,7 @@ class TaggedFixtureTest(unittest.TestCase):
             out = m4againpy.aac_apply_gain(data, steps)
             self.assertEqual(_find_ilst_blob(out), original_ilst)
 
-    def test_file_api_preserves_tags_and_adds_gain_description(self):
+    def test_file_api_preserves_tags_and_adds_custom_gain_tag(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             src = Path(tmpdir) / "tagged.m4a"
             dst = Path(tmpdir) / "tagged_out.m4a"
@@ -619,7 +655,7 @@ class TaggedFixtureTest(unittest.TestCase):
             # dst preserves existing tags and adds ffprobe-visible gain metadata
             after = _parse_itunes_tags(dst.read_bytes())
             expected = dict(before)
-            expected[b"desc"] = b"m4againpy version=1 gain_steps=4 gain_step_db=1.5"
+            expected[b"M4AG"] = b"m4againpy version=1 gain_steps=4 gain_step_db=1.5"
             self.assertEqual(expected, after)
 
     def test_gain_actually_applied_on_fixture(self):
