@@ -1,0 +1,21 @@
+[package]
+name = "mp4gainpy"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+name = "mp4gainpy"
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+python = ["dep:pyo3", "pyo3/extension-module"]
+
+[dependencies]
+thiserror = "2.0"
+pyo3 = { version = "0.27.2", optional = true, features = ["abi3-py39"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = "debuginfo"
